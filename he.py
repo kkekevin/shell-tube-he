@@ -8,7 +8,6 @@ def numOfTubes (shell_diameter, tube_outer_diameter, layout) :
     Parameters:
     - shell_diameter (float): Inner diameter of the shell (m).
     - tube_outer_diameter (float): Outer diameter of the tubes (m).
-    - tube_pitch (float): Center-to-center distance between adjacent tubes (m).
     - layout (str): Tube layout pattern, either 'triangle' or 'square'.
 
     Returns:
@@ -66,14 +65,15 @@ def shell_side_coefficient(d_o, baffle_cut, pitch, m_dos, c_p, mu, k, l, sg, D_s
     
     return h_shell
 
-def overall_heat_transfer_coefficient(h_tube, h_shell, d_o, d_i, k_wall):
+def overall_heat_transfer_coefficient(h_tube, h_shell, d_o, d_i, k_wall, r):
     # Wall resistance and fouling factors (simplified, no fouling)
     R_wall = np.log(d_o / d_i) / (2 * np.pi * k_wall)
     
     # Calculate overall heat transfer coefficient (U)
     U = 1 / ((1 / h_tube) + R_wall + (1 / h_shell) * (d_o / d_i))
+    Uf = 1 / (1 / U + r)
     
-    return U
+    return U, Uf
 
 # log mean temperature for counter-flow
 def tlm (tempInCold, tempOutCold, tempInHot, tempOutHot) :
@@ -119,8 +119,8 @@ tempInTube = 373.15
 tempOutTube = 355
 #pr = 6.0  # Prandtl number (for water)
 l = [1, 2, 3, 4]    # tube length in meters available
-d_i = 0.02  # inner diameter of the tube in meters
-d_o = 0.025  # outer diameter of the tube in meters
+d_i = 0.018  # inner diameter of the tube in meters
+d_o = 0.021  # outer diameter of the tube in meters
 layout = 't' # t/s triangle or square
 k_wall = 15  # thermal conductivity of tube wall in W/mK
 # shell side parameters (ketone)
@@ -130,31 +130,36 @@ muShell = 0.4131
 tempInShell = 283.15
 tempOutShell = 303.15
 sgShell = 810 # density of the shell's fluid in kg/m³
-D_shell = 0.5  # shell diameter in meters
+D_shell = 0.4  # shell diameter in meters
 baffle_cut = 0.25  # baffle cut as a fraction of the shell diameter
-Q = 50000  # total heat transfer in Watts
+Q = 5000  # total heat transfer in Watts
+foulingResistance = 0.0002 # fouling resistance
 deltaT_lm = tlm(tempInShell, tempOutShell, tempInTube, tempOutTube)  # log mean temperature difference in K
 x = 0
 
 # Calculate coefficients
-h_tube = tube_side_coefficient(d_i, m_dot, c_p, mu, k, l)
-h_shell = shell_side_coefficient(d_o, baffle_cut, d_o*1.25, m_dos, c_pShell, muShell, k, l, sgShell, D_shell)
-U = overall_heat_transfer_coefficient(h_tube, h_shell, d_o, d_i, k_wall)
-A = required_area(Q, U, deltaT_lm)
 while True :
+    h_tube = tube_side_coefficient(d_i, m_dot, c_p, mu, k, l)
+    h_shell = shell_side_coefficient(d_o, baffle_cut, d_o*1.25, m_dos, c_pShell, muShell, k, l, sgShell, D_shell)
+    UClean, UFouled = overall_heat_transfer_coefficient(h_tube, h_shell, d_o, d_i, k_wall, foulingResistance)
+    A = required_area(Q, UClean, deltaT_lm)
+    A1 = required_area(Q, UFouled, deltaT_lm)
     nTube = numOfTubes(D_shell, d_o, layout)
     nEstimatedTube, length = estimate_tube_number(A, d_o, l, nTube)
     if length != 0 :
         break
-    if x == 10000 :
+    if x == 1000 :
         break
     else :
-        D_shell += 0.1
+        D_shell += 0.012
         x += 1
 print(nTube)
 print(length)
 print(D_shell)
+
 print(f"Tube-side heat transfer coefficient: {h_tube:.2f} W/m²K")
 print(f"Shell-side heat transfer coefficient: {h_shell:.2f} W/m²K")
-print(f"Overall heat transfer coefficient: {U:.2f} W/m²K")
+print(f"Overall heat transfer coefficient: {UClean:.2f} W/m²K")
+print(f'Coeficiente de transferencia global no sujo: {UFouled: .2} W/m²K')
 print(f"Required heat transfer area: {A:.2f} m²")
+print(f"Area de transferencia de calor requerida: {A1:.2f} m²")

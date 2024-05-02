@@ -59,9 +59,6 @@ def shell_side_coefficient(d_o, baffle_cut, pitch, m_dos, c_p, mu, k, l, sg, D_s
     V_shell = m_dos / (A_cross * sg)  # assuming shell-side fluid density (ketone) is 780 kg/m3
     Re_shell = d_o * V_shell / mu
     pr = c_p * mu / k # not provided
-
-    print(f'aaa: {V_shell: .2f}')
-    print(Re_shell)
     
     # Use Colburn and friction factor relations for idealized shell-side flow
     jH = 0.5 * Re_shell**(-0.2)  # Colburn analogy for moderate Reynolds numbers
@@ -94,23 +91,23 @@ def estimate_tube_number(heat_transfer_area, tube_outer_diameter, length, n):
     Parameters:
     - heat_transfer_area (float): The total required heat transfer area (m^2).
     - tube_outer_diameter (float): The outer diameter of the tubes (m).
-    - tube_pitch (float): The center-to-center distance between tubes (m).
-    - layout (str): The layout of the tubes ('triangle' or 'square').
     
     Returns:
     int: The estimated total number of tubes.
+    int: Length of the tube.
     """
     # Calculate the surface area of one tube (assuming a unit length for simplicity)
     tube_surface_area_per_meter = math.pi * tube_outer_diameter  # per meter tube length
 
     # Test four length of tube
+    x = 0
     for l in length :
         tube_surface_area = tube_surface_area_per_meter * l
         # Calculate the number of tubes needed to achieve the desired total heat transfer area
         total = math.ceil(heat_transfer_area / tube_surface_area)
-        if (total <= n) :
-            return [l, total]
-    
+        if total <= n :
+            return total, l
+    return total, 0        
 
 # tube side parameters (therminol)
 m_dot = 27.77  # mass flow rate in kg/s
@@ -119,11 +116,11 @@ mu = 0.00152  # dynamic viscosity in Pa.s
 sg = 944 #density of the tube's fluid in kg/m³
 k = 0.123  # thermal conductivity in W/mK (therminol60)
 tempInTube = 373.15
-tempOutTube = 370
+tempOutTube = 355
 #pr = 6.0  # Prandtl number (for water)
 l = [1, 2, 3, 4]    # tube length in meters available
-d_i = 0.015  # inner diameter of the tube in meters
-d_o = 0.019  # outer diameter of the tube in meters
+d_i = 0.02  # inner diameter of the tube in meters
+d_o = 0.025  # outer diameter of the tube in meters
 layout = 't' # t/s triangle or square
 k_wall = 15  # thermal conductivity of tube wall in W/mK
 # shell side parameters (ketone)
@@ -137,15 +134,26 @@ D_shell = 0.5  # shell diameter in meters
 baffle_cut = 0.25  # baffle cut as a fraction of the shell diameter
 Q = 50000  # total heat transfer in Watts
 deltaT_lm = tlm(tempInShell, tempOutShell, tempInTube, tempOutTube)  # log mean temperature difference in K
+x = 0
 
 # Calculate coefficients
 h_tube = tube_side_coefficient(d_i, m_dot, c_p, mu, k, l)
 h_shell = shell_side_coefficient(d_o, baffle_cut, d_o*1.25, m_dos, c_pShell, muShell, k, l, sgShell, D_shell)
 U = overall_heat_transfer_coefficient(h_tube, h_shell, d_o, d_i, k_wall)
 A = required_area(Q, U, deltaT_lm)
-nTube = numOfTubes(D_shell, d_o, layout)
-#length, nTube = estimate_tube_number(A, d_o, l, nTube)
-
+while True :
+    nTube = numOfTubes(D_shell, d_o, layout)
+    nEstimatedTube, length = estimate_tube_number(A, d_o, l, nTube)
+    if length != 0 :
+        break
+    if x == 10000 :
+        break
+    else :
+        D_shell += 0.1
+        x += 1
+print(nTube)
+print(length)
+print(D_shell)
 print(f"Tube-side heat transfer coefficient: {h_tube:.2f} W/m²K")
 print(f"Shell-side heat transfer coefficient: {h_shell:.2f} W/m²K")
 print(f"Overall heat transfer coefficient: {U:.2f} W/m²K")

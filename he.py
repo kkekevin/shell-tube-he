@@ -107,15 +107,34 @@ def estimate_tube_number(heat_transfer_area, tube_outer_diameter, length, n):
         total = math.ceil(heat_transfer_area / tube_surface_area)
         if total <= n :
             return total, l
-    return total, 0        
+    return total, 0
+
+def baffle_spacing(shell_diameter, baffle_cut_percentage):
+    """
+    Estimate the number of baffles and their spacing according to Kern's method.
+
+    Parameters:
+    - shell_diameter (float): Internal diameter of the shell (m).
+    - baffle_cut_percentage (int): Percentage of baffle cut (%).
+
+    Returns:
+    tuple: Number of baffles and recommended baffle spacing (m).
+    """
+    # Calculate number of baffles
+    num_baffles = max(4, round(shell_diameter / 0.9))  # Example correlation, adjust as needed
+
+    # Calculate baffle spacing based on cut percentage
+    baffle_spacing = shell_diameter / (num_baffles + (baffle_cut_percentage / 100))
+
+    return num_baffles, baffle_spacing
 
 # tube side parameters (therminol)
 m_dot = 27.77  # mass flow rate in kg/s
 c_p = 1900   # specific heat capacity in J/kgK (therminol)
 mu = 0.00152  # dynamic viscosity in Pa.s
-sg = 944 #density of the tube's fluid in kg/m³
+sg = 953.8 #density of the tube's fluid in kg/m³
 k = 0.123  # thermal conductivity in W/mK (therminol60)
-tempInTube = 373.15
+tempInTube = 373.15 # inlet temp in K
 tempOutTube = 355
 #pr = 6.0  # Prandtl number (for water)
 l = [1, 2, 3, 4]    # tube length in meters available
@@ -126,13 +145,13 @@ k_wall = 15  # thermal conductivity of tube wall in W/mK
 # shell side parameters (ketone)
 m_dos = 22.22
 c_pShell = 2200.8 #specific heat capacity in J/kgK (ketone)
-muShell = 0.4131
+muShell = 0.0007789092
 tempInShell = 283.15
 tempOutShell = 303.15
-sgShell = 810 # density of the shell's fluid in kg/m³
+sgShell = 784 # density of the shell's fluid in kg/m³
 D_shell = 0.4  # shell diameter in meters
 baffle_cut = 0.25  # baffle cut as a fraction of the shell diameter
-Q = 5000  # total heat transfer in Watts
+Q = 50000 # total heat transfer in Watts
 foulingResistance = 0.0002 # fouling resistance
 deltaT_lm = tlm(tempInShell, tempOutShell, tempInTube, tempOutTube)  # log mean temperature difference in K
 x = 0
@@ -153,6 +172,11 @@ while True :
     else :
         D_shell += 0.012
         x += 1
+
+lHE = length / D_shell # length of the Heat Exchanger
+nBaffle, lBaffle = baffle_spacing(D_shell, baffle_cut)
+print(nBaffle)
+print(lHE)
 print(nTube)
 print(length)
 print(D_shell)

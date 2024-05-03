@@ -128,6 +128,27 @@ def baffle_spacing(shell_diameter, baffle_cut_percentage):
 
     return num_baffles, baffle_spacing
 
+def tube_pressure_drop(length, diameter, flow_rate, density, viscosity):
+    # Constants
+    g = 9.81  # acceleration due to gravity in m/s^2
+    
+    # Calculate velocity
+    area = np.pi * (diameter / 2)**2
+    velocity = flow_rate / area
+
+    # Calculate Reynolds number
+    Re = density * velocity * diameter / viscosity
+    
+    # Calculate friction factor using Churchill's equation (applicable over all regimes)
+    A = (2.457 * np.log(1 / ((7 / Re)**0.9 + 0.27 * (0.0001/diameter))))**16
+    B = (37530 / Re)**16
+    f = 8 * ((8 / Re)**12 + 1 / (A + B)**1.5)**(1/12)
+    
+    # Calculate pressure drop using Darcy-Weisbach equation
+    pressure_drop = f * (length / diameter) * (density * velocity**2 / 2) / g
+    
+    return pressure_drop
+
 # tube side parameters (therminol)
 m_dot = 27.77  # mass flow rate in kg/s
 c_p = 1900   # specific heat capacity in J/kgK (therminol)
@@ -174,16 +195,20 @@ while True :
         x += 1
 
 lHE = length / D_shell # length of the Heat Exchanger
-nBaffle, lBaffle = baffle_spacing(D_shell, baffle_cut)
-print(nBaffle)
-print(lHE)
-print(nTube)
-print(length)
-print(D_shell)
+nBaffle, lBaffle = baffle_spacing(D_shell, baffle_cut) # num of baffles and space between
+pDropTube = tube_pressure_drop(length, d_i, m_dot / sg, sg, mu) # pressure drop of tube side
 
-print(f"Tube-side heat transfer coefficient: {h_tube:.2f} W/m²K")
-print(f"Shell-side heat transfer coefficient: {h_shell:.2f} W/m²K")
-print(f"Overall heat transfer coefficient: {UClean:.2f} W/m²K")
-print(f'Coeficiente de transferencia global no sujo: {UFouled: .2} W/m²K')
-print(f"Required heat transfer area: {A:.2f} m²")
+
+print(f"Coeficiente de tranferencia de calor do tubo: {h_tube:.2f} W/m²K")
+print(f"Coeficiente de tranferencia de calor do casco: {h_shell:.2f} W/m²K")
+print(f"Coeficiente de tranferencia de calor global: {UClean:.2f} W/m²K")
+print(f'Coeficiente de transferencia global considerando fator de incrustacao: {UFouled:.2f} W/m²K')
 print(f"Area de transferencia de calor requerida: {A1:.2f} m²")
+print(f'Area instalada: {np.pi * d_o * nTube * length:.2f}')
+print(f"Quantidade de tubos: {nTube}")
+print(f"Comprimento dos tubos: {length} m")
+print(f"Diametro do casco: {D_shell} m")
+print(f"Numero de chicanas: {nBaffle}")
+print(f"Comprimento do trocador de calor: {lHE} m")
+print(f"Perda de carga nos tubos: {pDropTube:.2f} Pa")
+
